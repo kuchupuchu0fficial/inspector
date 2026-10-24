@@ -1,55 +1,47 @@
 import streamlit as st
-from huggingface_hub import HfApi, hf_hub_download
-import pyarrow.parquet as pq
-import os
+import requests
 
-st.title("Parquet Dataset Inspector")
+st.title("Parquet Schema Inspector")
 
-repo_id = st.text_input(
-    "Hugging Face Dataset ID",
-    "index-oss/reverseDomain"
-)
+repo = "index-oss/reverseDomain"
 
-if st.button("Inspect Dataset"):
-    try:
-        api = HfApi()
-        files = api.list_repo_files(
-            repo_id=repo_id,
-            repo_type="dataset"
+files = [
+    "idx_aadhar.4.parquet",
+    "idx_aadhar.5.parquet",
+    "idx_aadhar.6.parquet",
+    "idx_phone.0.parquet",
+]
+
+for filename in files:
+    if st.button(f"Inspect {filename}"):
+        url = (
+            f"https://huggingface.co/datasets/"
+            f"{repo}/resolve/main/{filename}"
         )
 
-        parquet_files = [
-            f for f in files if f.endswith(".parquet")
-        ]
+        st.write("File:", filename)
 
-        st.success(f"Parquet files found: {len(parquet_files)}")
+        try:
+            response = requests.head(
+                url,
+                allow_redirects=True,
+                timeout=30
+            )
 
-        results = []
+            st.write(
+                "HTTP status:",
+                response.status_code
+            )
 
-        for filename in parquet_files:
-            info = api.get_paths_info(
-                repo_id=repo_id,
-                paths=[filename],
-                repo_type="dataset"
-            )[0]
+            st.write(
+                "Content length:",
+                response.headers.get("Content-Length")
+            )
 
-            size = getattr(info, "size", None)
+            st.info(
+                "This checks file availability only. "
+                "It does not retrieve the Parquet schema."
+            )
 
-            results.append({
-                "File": filename,
-                "Size (GB)": round(size / 1e9, 2)
-                if size else None
-            })
-
-        st.dataframe(results)
-
-        if st.button("Inspect first file schema"):
-            pass
-
-        st.info(
-            "File listing complete. Schema inspection "
-            "is a separate operation."
-        )
-
-    except Exception as e:
-        st.error(f"Inspection failed: {e}")
+        except requests.RequestException as error:
+            st.error(str(error))
