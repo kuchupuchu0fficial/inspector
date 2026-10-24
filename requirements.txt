@@ -1,3 +1,5 @@
 streamlit
-huggingface_hub
+requests
 pyarrow
+fsspec
+huggingface_hub
